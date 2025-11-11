@@ -70,3 +70,42 @@ env_run.py 实现了环境的运行逻辑，包括：
 - `TraceSink.ipynb`：老脚本，功能已经被切分了
 - `SeeDataset.ipynb`：画预测训练结果的实验图
 - `scheduling.ipynb`：完整的调度实验逻辑，`get_act`是选择调度算法的入口
+
+
+## 纯 Python 工程与 CLI 使用指南（新增）
+
+本项目已新增纯 Python 工程化实现，支持命令行运行完整仿真流程，无需依赖 Jupyter。
+
+- 代码结构：
+  - `src/flexload/core/simulator.py`：仿真主循环封装（替代 Notebook 的 execution）。
+  - `src/flexload/core/state.py`：统一状态构造与转换（含 KaiS 所需 88 维向量）。
+  - `src/flexload/scheduler/selector.py`：调度算法统一入口（KaiS/UCB/DQN/generic/Random/UCB_predict）。
+  - `src/flexload/metrics/usage.py`：资源使用记录与持久化（替代 globals）。
+  - `src/flexload/utils/config.py`：配置加载（YAML/JSON），含默认值。
+  - `src/flexload/utils/logging.py`：日志初始化与目录创建（logs/results/outputs）。
+  - `src/flexload/utils/seeding.py`：随机种子固定（random/numpy/torch）。
+  - `scripts/run.py`：CLI 入口。
+
+- 安装依赖：
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+- 运行示例（冒烟）：
+  ```bash
+  python scripts/run.py --config configs/default.yaml --model KaiS --run_times 1 --break_point 200 --cho_cycle 50
+  ```
+
+- 产物说明：
+  - `results/node_resource_usage_<MODEL>.json`：各 slot 的节点资源使用记录。
+  - `outputs/summary.json`：一次或多次 run 的汇总指标（吞吐、响应率、奖励）。
+  - `logs/run.log`：运行日志。
+
+- 配置说明：
+  - 默认配置位于 `configs/default.yaml`，可覆盖：设备选择（cpu/cuda）、数据路径、是否启用 `informer`、`UCB_predict` 的预测类型等。
+
+- 已修复的已知问题：
+  - `s_grid` 第二组状态使用 `cpu_list2/mem_list2`（修复 notebook 复用错误）。
+  - `KaiS` 的状态维度统一转换为 88 维向量，避免维度错误。
+  - 写文件前确保目录存在（`results/`、`outputs/`、`logs/`）。
+  - 移除 `globals()` 的状态共享，改用对象记录与传参。

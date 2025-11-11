@@ -281,7 +281,7 @@ class Estimator(nn.Module):
 
         valid_neighbor_node_id = [[i for i in range(self.action_dim)], [i for i in range(self.action_dim)]]
 
-        action_probs = self.forward_policy(s, torch.tensor(curr_neighbor_mask, dtype=torch.float32)).numpy()
+        action_probs = self.forward_policy(s, torch.tensor(curr_neighbor_mask, dtype=torch.float32)).detach().numpy()
         curr_neighbor_mask_policy = []
 
         for idx, grid_valid_idx in enumerate(grid_ids):
@@ -289,8 +289,18 @@ class Estimator(nn.Module):
             valid_prob.append(action_prob)
             if int(context[idx]) == 0:
                 continue
-            curr_action_indices_temp = np.random.choice(self.action_dim, int(context[idx]),
-                                                        p=action_prob / np.sum(action_prob))
+            # 采样策略：如概率无效则退化为在有效动作上均匀采样
+            sum_prob = np.sum(action_prob)
+            mask_vec = curr_neighbor_mask[idx]
+            if (sum_prob <= 0) or np.isnan(action_prob).any():
+                valid_idx = np.where(mask_vec > 0)[0]
+                if len(valid_idx) == 0:
+                    continue
+                p = np.ones(len(valid_idx), dtype=np.float32) / float(len(valid_idx))
+                curr_action_indices_temp = np.random.choice(valid_idx, int(context[idx]), p=p)
+            else:
+                curr_action_indices_temp = np.random.choice(self.action_dim, int(context[idx]),
+                                                            p=action_prob / sum_prob)
             curr_action_indices = [0] * self.action_dim
             for kk in curr_action_indices_temp:
                 curr_action_indices[kk] += 1

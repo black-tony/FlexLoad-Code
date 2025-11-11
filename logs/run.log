@@ -1,0 +1,4 @@
+2025-11-11 23:05:32,095 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-11 23:05:32,642 [INFO] flexload - Run 1/1 starting...
+2025-11-11 23:05:33,513 [INFO] flexload - Run 1 throughput=1.0000, achieve=13, fail=0
+2025-11-11 23:05:33,609 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 200, 'cho_cycle': 50, 'throughput_list': [1.0], 'order_response_rate_episode': [0.05527638190954774], 'episode_rewards': [728.4982914511966]}
