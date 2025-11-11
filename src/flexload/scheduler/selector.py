@@ -4,10 +4,10 @@ import logging
 import numpy as np
 import torch
 
-from scheduling_util.scheduler.KaiS import Estimator
-from scheduling_util.scheduler.generic import get_generic_act
-import scheduling_util.scheduler.UCB as ucb_scheduler
-import scheduling_util.scheduler.DQN as DQN
+from flexload.scheduler.KaiS import Estimator
+from flexload.scheduler.generic import get_generic_act
+import flexload.scheduler.UCB as ucb_scheduler
+import flexload.scheduler.DQN as DQN
 
 from flexload.core.state import to_kais_state
 
@@ -24,7 +24,7 @@ def init_algorithms(cfg: Dict[str, Any], logger: Optional[logging.Logger] = None
     informer = None
     if bool(cfg.get("informer", {}).get("enable", False)):
         try:
-            from models.Informer import Informer
+            from flexload.models.Informer import Informer
             params = cfg.get("informer", {})
             informer = Informer(
                 input_size=int(params.get("input_size", 199)),

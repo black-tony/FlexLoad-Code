@@ -2,7 +2,7 @@
 from typing import List, Tuple, Dict, Any
 import numpy as np
 
-from scheduling_util.env.platform import Master
+from flexload.env.platform import Master
 
 
 def _flatten_deploy_state(deploy_state: List[List[int]]) -> List[float]:

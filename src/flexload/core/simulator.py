@@ -7,8 +7,8 @@ from typing import List, Tuple, Optional, Dict, Any
 
 import numpy as np
 
-from scheduling_util.env.platform import Node, Master, Cloud, Docker
-from scheduling_util.env.env_run import (
+from flexload.env.platform import Node, Master, Cloud, Docker
+from flexload.env.env_run import (
     get_all_task,
     update_task_queue,
     check_queue,

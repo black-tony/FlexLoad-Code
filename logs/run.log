@@ -2,3 +2,11 @@
 2025-11-11 23:05:32,642 [INFO] flexload - Run 1/1 starting...
 2025-11-11 23:05:33,513 [INFO] flexload - Run 1 throughput=1.0000, achieve=13, fail=0
 2025-11-11 23:05:33,609 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 200, 'cho_cycle': 50, 'throughput_list': [1.0], 'order_response_rate_episode': [0.05527638190954774], 'episode_rewards': [728.4982914511966]}
+2025-11-11 23:49:17,506 [INFO] flexload - Config loaded from configs/default.yaml
+2025-11-11 23:49:18,052 [INFO] flexload - Run 1/1 starting...
+2025-11-11 23:49:18,314 [INFO] flexload - Run 1 throughput=1.0000, achieve=9, fail=0
+2025-11-11 23:49:18,406 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 50, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.14285714285714285], 'episode_rewards': [183.0132967410633]}
+2025-11-12 00:03:09,273 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 00:03:09,817 [INFO] flexload - Run 1/1 starting...
+2025-11-12 00:03:10,013 [INFO] flexload - Run 1 throughput=1.0000, achieve=9, fail=0
+2025-11-12 00:03:10,105 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 50, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.14285714285714285], 'episode_rewards': [183.0132967410633]}

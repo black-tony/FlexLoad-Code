@@ -5,23 +5,19 @@ FlexLoad项目主要包含两个核心模块：资源利用率预测模块和任
 
 ```
 FlexLoad-Code/
-├── models/                  # 资源利用率预测模型
-│   ├── GWNet.py             # 图卷积网络预测模型
-│   ├── Informer.py          # Transformer架构的预测模型
-│   ├── LSTM.py              # LSTM预测模型
-│   └── Informer_assets/     # Informer模型的一些需要的依赖函数
-├── scheduling_util/         # 任务调度相关代码
-│   ├── scheduler/           
-│   │   ├── DQN.py           # 基于DQN的调度算法
-│   │   ├── KaiS.py          # 基于KaiS的调度算法
-│   │   ├── UCB.py           # 基于UCB调度算法
-│   │   └── generic.py       # 基于遗传算法的调度算法
-│   └── env/                 # 整个实验pipeline的环境和平台模拟
-│       ├── env_run.py       # 环境运行逻辑
-│       └── platform.py      # 平台实体类定义
-├── data/                    # 数据集文件
-├── *.ipynb                  # 数据处理和模型训练的Jupyter Notebook
-└── best_*.pth               # 预训练模型文件
+├── src/
+│   └── flexload/
+│       ├── core/          # 仿真主循环与状态构造
+│       ├── env/           # 平台与环境
+│       ├── scheduler/     # 调度算法与选择器
+│       └── models/        # 预测模型（Informer/GWNet/LSTM）
+├── scripts/               # CLI 入口
+├── configs/               # 配置文件
+├── data/                  # 数据集
+├── results/               # 仿真结果
+├── outputs/               # 指标汇总
+├── logs/                  # 日志
+└── *.ipynb                # 旧 Notebook（保留作为参考，不参与运行）
 ```
 
 ## 核心模块详解
