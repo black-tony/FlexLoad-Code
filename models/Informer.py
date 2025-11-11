@@ -3,11 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # from utils.masking import TriangularCausalMask, ProbMask
-if True:
-    from Informer_assets.encoder import Encoder, EncoderLayer, ConvLayer, EncoderStack
-    from Informer_assets.decoder import Decoder, DecoderLayer
-    from Informer_assets.attn import FullAttention, ProbAttention, AttentionLayer
-    from Informer_assets.embed import DataEmbedding
+if False:
+    from .Informer_assets.encoder import Encoder, EncoderLayer, ConvLayer, EncoderStack
+    from .Informer_assets.decoder import Decoder, DecoderLayer
+    from .Informer_assets.attn import FullAttention, ProbAttention, AttentionLayer
+    from .Informer_assets.embed import DataEmbedding
 
     class Informer(nn.Module):
         def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len, 
@@ -158,7 +158,7 @@ if True:
             else:
                 return dec_out[:,-self.pred_len:,:] # [B, L, D]
 
-if False:
+if True:
     class AttentionLayer(nn.Module):
         def __init__(self, embed_size, heads, dropout=0.1):
             super(AttentionLayer, self).__init__()
