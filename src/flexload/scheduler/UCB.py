@@ -21,25 +21,46 @@ class UCB:
         # Update the estimated value of the chosen node
         self.values[chosen_node] = ((n - 1) / n) * value + (1 / n) * reward
 
+
+def _map_global_node_to_master_local(chosen_node: int, s_grid):
+    """将全局节点索引映射到 (master_id, local_node)。cloud 返回 None。
+    cloud 索引 = sum(len(cpu_list) for 每组)
+    """
+    total_nodes = 0
+    lengths = []
+    for g in s_grid:
+        n = len(g[2])
+        lengths.append(n)
+        total_nodes += n
+    cloud_index = total_nodes
+    if chosen_node == cloud_index:
+        return None
+    acc = 0
+    for midx, n in enumerate(lengths):
+        if chosen_node < acc + n:
+            return midx, chosen_node - acc
+        acc += n
+    return None
+
+
 def ucb_rounds(ucb_instance:UCB, s_grid, ava_node, task_index, rounds=500):
     for _ in range(rounds):
         chosen_index = int(ucb_instance.select_node())
         chosen_node = ava_node[task_index][chosen_index]
 
         # Simulate a reward based on CPU and memory utilization
-        if chosen_node != 6:
-            master=0
-            if chosen_node >= 3:
-                chosen_node = chosen_node - 3
-                master = 1
-            cpu_usage = s_grid[master][2][chosen_node][0] / s_grid[master][2][chosen_node][1]
-            mem_usage = s_grid[master][3][chosen_node][0] / s_grid[master][3][chosen_node][1]
+        mapped = _map_global_node_to_master_local(chosen_node, s_grid)
+        if mapped is not None:
+            master, local_node = mapped
+            cpu_usage = s_grid[master][2][local_node][0] / s_grid[master][2][local_node][1]
+            mem_usage = s_grid[master][3][local_node][0] / s_grid[master][3][local_node][1]
             reward = cpu_usage + mem_usage
         else:
             reward = 0
         # Update UCB with the observed reward
         ucb_instance.update(chosen_index, reward)
     return int(ucb_instance.select_node())
+
 
 def get_act(s_grid, ava_node, context):
     num_tasks = len(ava_node)
@@ -54,20 +75,5 @@ def get_act(s_grid, ava_node, context):
             actions.append(ava_node[task_index][0])
             continue
         actions.append((ucb_rounds(ucb_instances[task_index], s_grid, ava_node, task_index)))
-        # Select a node using UCB
-        # chosen_index = ucb_instances[task_index].select_node()
-        # chosen_node = ava_node[task_index][chosen_index]
-        # actions.append(chosen_node)
-
-        # # Simulate a reward based on CPU and memory utilization
-        # if chosen_node != 6:  # If not cloud computing
-        #     cpu_usage = s_grid[task_index][2][chosen_node][0] / s_grid[task_index][2][chosen_node][1]
-        #     mem_usage = s_grid[task_index][3][chosen_node][0] / s_grid[task_index][3][chosen_node][1]
-        #     reward = cpu_usage + mem_usage  # Simplified reward
-        # else:
-        #     reward = 0  # Assume cloud has a neutral reward
-
-        # # Update UCB with the observed reward
-        # ucb_instances[task_index].update(chosen_index, reward)
 
     return actions, None, None, None, None, None, None

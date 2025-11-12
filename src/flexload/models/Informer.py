@@ -162,11 +162,29 @@ if True:
     class AttentionLayer(nn.Module):
         def __init__(self, embed_size, heads, dropout=0.1):
             super(AttentionLayer, self).__init__()
-            self.attn = nn.MultiheadAttention(embed_size, heads, dropout=dropout)
+            # 支持 batch_first，输入形状为 [batch, seq_len, embed_dim]
+            try:
+                self.attn = nn.MultiheadAttention(embed_size, heads, dropout=dropout, batch_first=True)
+            except TypeError:
+                # 旧版 PyTorch 不支持 batch_first，使用显式转置处理
+                self.attn = nn.MultiheadAttention(embed_size, heads, dropout=dropout)
+                self._batch_first = False
+            else:
+                self._batch_first = True
         
         def forward(self, query, key, value):
-            output, _ = self.attn(query, key, value)
-            return output
+            # 如果不支持 batch_first，则在 attn 前后做转置
+            if getattr(self, '_batch_first', True):
+                output, _ = self.attn(query, key, value)
+                return output
+            else:
+                # 输入 [B, L, E] -> [L, B, E]
+                q = query.transpose(0, 1)
+                k = key.transpose(0, 1)
+                v = value.transpose(0, 1)
+                out, _ = self.attn(q, k, v)
+                # 输出 [L, B, E] -> [B, L, E]
+                return out.transpose(0, 1)
 
     class InformerEncoderLayer(nn.Module):
         def __init__(self, embed_size, heads, ff_hid_dim, dropout=0.1):
@@ -182,6 +200,7 @@ if True:
             self.dropout = nn.Dropout(dropout)
         
         def forward(self, x):
+            # x: [batch, seq_len, embed_size]
             attn_out = self.attn(x, x, x)
             x = self.layernorm1(x + self.dropout(attn_out))
             

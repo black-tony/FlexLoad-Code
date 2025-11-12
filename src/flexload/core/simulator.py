@@ -15,7 +15,7 @@ from flexload.env.env_run import (
     update_docker,
 )
 
-from flexload.core.state import build_s_grid, build_ava_nodes
+from flexload.core.state import build_ava_nodes
 from flexload.scheduler.selector import select_action, init_algorithms
 from flexload.metrics.usage import ResourceUsageTracker
 from flexload.utils.logging import ensure_dir
@@ -44,6 +44,11 @@ class Simulator:
         if len(self.service_coeff) < self.MAX_TASK_TYPE:
             self.service_coeff += [1.0] * (self.MAX_TASK_TYPE - len(self.service_coeff))
         self.service_coeff = self.service_coeff[:self.MAX_TASK_TYPE]
+
+        # 可配置规模
+        self.num_masters = int(config.get("num_masters", 2))
+        self.nodes_per_master = int(config.get("nodes_per_master", 3))
+        self.total_nodes = self.num_masters * self.nodes_per_master
 
         # 目录
         self.results_dir = config.get("RESULTS_DIR", "results")
@@ -84,50 +89,44 @@ class Simulator:
         reward.append(np.exp(-task_fail_rate[1]) + weight * np.exp(-standard_list[1]))
         return reward
 
-    def _init_cluster(self, current_time: float) -> Tuple[Master, Master, Cloud]:
-        """初始化两个 master 集群与 cloud，按配置节点资源。"""
-        # 节点资源（如需可从配置里逐个节点设置，这里给出默认值）
-        node1_1 = Node(100.0, 4.0, [], [])
-        node1_2 = Node(200.0, 6.0, [], [])
-        node1_3 = Node(100.0, 8.0, [], [])
-        node_list1 = [node1_1, node1_2, node1_3]
-
-        node2_1 = Node(200.0, 8.0, [], [])
-        node2_2 = Node(100.0, 2.0, [], [])
-        node2_3 = Node(200.0, 6.0, [], [])
-        node_list2 = [node2_1, node2_2, node2_3]
-
+    def _init_cluster(self, current_time: float) -> Tuple[List[Master], Cloud]:
+        """按配置初始化多 master 集群与 cloud。"""
+        num_masters = int(self.cfg.get("num_masters", 2))
+        nodes_per_master = int(self.cfg.get("nodes_per_master", 3))
+        masters: List[Master] = []
+        # 节点资源模式（循环使用）
+        patterns = [(100.0, 4.0), (200.0, 6.0), (100.0, 8.0)]
         # 任务数据路径
         task_path1 = self.cfg.get("data_task_1", "data/Task_1.csv")
         task_path2 = self.cfg.get("data_task_2", "data/Task_2.csv")
-        all_task1 = get_all_task(task_path1)
-        all_task2 = get_all_task(task_path2)
-
-        master1 = Master(200.0, 8.0, node_list1, [], all_task1, 0, 0, 0, [0] * self.MAX_TASK_TYPE, [0] * self.MAX_TASK_TYPE)
-        master2 = Master(200.0, 8.0, node_list2, [], all_task2, 0, 0, 0, [0] * self.MAX_TASK_TYPE, [0] * self.MAX_TASK_TYPE)
+        for m in range(num_masters):
+            node_list = []
+            for i in range(nodes_per_master):
+                cpu, mem = patterns[i % len(patterns)]
+                node_list.append(Node(cpu, mem, [], []))
+            # 交替使用两份任务数据
+            task_path = task_path1 if m % 2 == 0 else task_path2
+            all_task = get_all_task(task_path)
+            masters.append(Master(200.0, 8.0, node_list, [], all_task, 0, 0, 0, [0] * self.MAX_TASK_TYPE, [0] * self.MAX_TASK_TYPE))
         cloud = Cloud([], [], sys.maxsize, sys.maxsize)
 
         # 根据 deploy_state 初始化每个节点的 docker（按服务类型）
         deploy_state = self.cfg.get("deploy_state")
+        total_nodes = num_masters * nodes_per_master
         if deploy_state is None:
-            # 默认：全部部署为 1（沿用 notebook 中的全 1 设置）
-            deploy_state = [[1] * self.MAX_TASK_TYPE for _ in range(6)]
-
-        for i in range(6):
+            # 默认：全部部署为 1（大小为 total_nodes x MAX_TASK_TYPE）
+            deploy_state = [[1] * self.MAX_TASK_TYPE for _ in range(total_nodes)]
+        for i in range(total_nodes):
             for ii in range(self.MAX_TASK_TYPE):
                 decision = deploy_state[i][ii]
                 if decision != 1:
                     continue
-                if i < 3:
-                    j = i
-                    docker = Docker(self.POD_MEM * self.service_coeff[ii], self.POD_CPU * self.service_coeff[ii], current_time, ii, [-1])
-                    master1.node_list[j].service_list.append(docker)
-                else:
-                    j = i - 3
-                    docker = Docker(self.POD_MEM * self.service_coeff[ii], self.POD_CPU * self.service_coeff[ii], current_time, ii, [-1])
-                    master2.node_list[j].service_list.append(docker)
+                master_id = i // nodes_per_master
+                local_node = i % nodes_per_master
+                docker = Docker(self.POD_MEM * self.service_coeff[ii], self.POD_CPU * self.service_coeff[ii], current_time, ii, [-1])
+                masters[master_id].node_list[local_node].service_list.append(docker)
 
-        return master1, master2, cloud
+        return masters, cloud
 
     def run(self,
             RUN_TIMES: int,
@@ -148,47 +147,51 @@ class Simulator:
             batch_reward = []
             cur_time = 0.0
             order_response_rates = []
-            pre_done = [0, 0]
-            pre_undone = [0, 0]
-            context = [1, 1]
+            pre_done = [0] * int(self.cfg.get("num_masters", 2))
+            pre_undone = [0] * int(self.cfg.get("num_masters", 2))
+            context = [1] * int(self.cfg.get("num_masters", 2))
 
             # 初始化集群
-            master1, master2, cloud = self._init_cluster(current_time=cur_time)
-            deploy_state = self.cfg.get("deploy_state", [[1]*self.MAX_TASK_TYPE for _ in range(6)])
+            masters, cloud = self._init_cluster(current_time=cur_time)
+            num_masters = int(self.cfg.get("num_masters", 2))
+            nodes_per_master = int(self.cfg.get("nodes_per_master", 3))
+            total_nodes = num_masters * nodes_per_master
+            deploy_state = self.cfg.get("deploy_state")
             if deploy_state is None:
-                deploy_state = [[1]*self.MAX_TASK_TYPE for _ in range(6)]
+                deploy_state = [[1]*self.MAX_TASK_TYPE for _ in range(total_nodes)]
 
             # 主循环
             for slot in range(int(BREAK_POINT)):
                 cur_time += self.SLOT_TIME
 
-                # 记录当前资源使用
-                self.usage_tracker.append_slot(master1, master2, cur_time)
+                # 记录当前资源使用（多 master）
+                self.usage_tracker.append_slot_multi(masters, cur_time)
 
                 # 周期性进行一次决策（CHO_CYCLE）
                 if slot % int(CHO_CYCLE) == 0 and slot != 0:
                     if len(batch_reward) > 0:
-                        # 这里采用均值作为这一周期的奖励记录
                         pass
 
                 # 更新任务队列（按时间）
-                master1 = update_task_queue(master1, cur_time, 0)
-                master2 = update_task_queue(master2, cur_time, 1)
+                for m_idx in range(num_masters):
+                    masters[m_idx] = update_task_queue(masters[m_idx], cur_time, m_idx)
 
-                # 取当前两个任务（若有）
-                task1 = master1.task_queue[0] if len(master1.task_queue) != 0 else [-1]
-                if len(master1.task_queue) != 0:
-                    del master1.task_queue[0]
-                task2 = master2.task_queue[0] if len(master2.task_queue) != 0 else [-1]
-                if len(master2.task_queue) != 0:
-                    del master2.task_queue[0]
-                curr_task = [task1, task2]
+                # 从每个 master 取一个当前任务（若有）
+                curr_tasks = []
+                for m_idx in range(num_masters):
+                    if len(masters[m_idx].task_queue) != 0:
+                        task = masters[m_idx].task_queue[0]
+                        del masters[m_idx].task_queue[0]
+                    else:
+                        task = [-1]
+                    curr_tasks.append(task)
 
-                # 构造 ava_node（可用节点列表）
-                ava_node = build_ava_nodes(deploy_state, curr_task)
+                # 构造 ava_node（可用节点列表，全局索引 + cloud=total_nodes）
+                ava_node = build_ava_nodes(deploy_state, curr_tasks)
 
-                # 构造 s_grid（注意第二组 CPU/MEM 使用 master2 的）
-                s_grid = build_s_grid(master1, master2, deploy_state)
+                # 构造 s_grid（每个 master 一组）
+                from flexload.core.state import build_s_grid_multi
+                s_grid = build_s_grid_multi(masters, deploy_state)
 
                 # 选择动作
                 act, valid_action_prob_mat, policy_state, action_choosen_mat, curr_state_value, curr_neighbor_mask, next_state_ids = \
@@ -197,61 +200,64 @@ class Simulator:
 
                 # 将当前任务按动作入队
                 for i in range(len(act)):
-                    if curr_task[i][0] == -1:
+                    if curr_tasks[i][0] == -1:
                         continue
                     a = act[i]
-                    if a == 6:
-                        cloud.task_queue.append(curr_task[i])
-                    elif 0 <= a < 3:
-                        master1.node_list[a].task_queue.append(curr_task[i])
-                    elif 3 <= a < 6:
-                        master2.node_list[a - 3].task_queue.append(curr_task[i])
+                    if a == total_nodes:
+                        cloud.task_queue.append(curr_tasks[i])
+                    elif 0 <= a < total_nodes:
+                        master_id = a // nodes_per_master
+                        local_node = a % nodes_per_master
+                        masters[master_id].node_list[local_node].task_queue.append(curr_tasks[i])
                     else:
-                        # 非法动作忽略
                         self.logger.debug(f"Ignore invalid action: {a}")
 
-                # 更新各节点 docker 执行状态
-                for i in range(3):
-                    master1.node_list[i], undone, done, done_kind, undone_kind = update_docker(
-                        master1.node_list[i], cur_time, self.service_coeff, self.POD_CPU, self.POD_MEM)
-                    for j in range(len(done_kind)):
-                        master1.done_kind[done_kind[j]] += 1
-                    for j in range(len(undone_kind)):
-                        master1.undone_kind[undone_kind[j]] += 1
-                    master1.undone += undone[0]
-                    master2.undone += undone[1]
-                    master1.done += done[0]
-                    master2.done += done[1]
-
-                    master2.node_list[i], undone, done, done_kind, undone_kind = update_docker(
-                        master2.node_list[i], cur_time, self.service_coeff, self.POD_CPU, self.POD_MEM)
-                    for j in range(len(done_kind)):
-                        master1.done_kind[done_kind[j]] += 1
-                    for j in range(len(undone_kind)):
-                        master1.undone_kind[undone_kind[j]] += 1
-                    master1.undone += undone[0]
-                    master2.undone += undone[1]
-                    master1.done += done[0]
-                    master2.done += done[1]
+                # 更新各 master 的 docker 执行状态
+                for m_idx in range(num_masters):
+                    for i in range(nodes_per_master):
+                        masters[m_idx].node_list[i], undone, done, done_kind, undone_kind = update_docker(
+                            masters[m_idx].node_list[i], cur_time, self.service_coeff, self.POD_CPU, self.POD_MEM)
+                        for j in range(len(done_kind)):
+                            masters[m_idx].done_kind[done_kind[j]] += 1
+                        for j in range(len(undone_kind)):
+                            masters[m_idx].undone_kind[undone_kind[j]] += 1
+                        masters[m_idx].undone += undone[m_idx] if m_idx < len(undone) else 0
+                        masters[m_idx].done += done[m_idx] if m_idx < len(done) else 0
 
                 cloud, undone, done, done_kind, undone_kind = update_docker(
                     cloud, cur_time, self.service_coeff, self.POD_CPU, self.POD_MEM)
-                master1.undone += undone[0]
-                master2.undone += undone[1]
-                master1.done += done[0]
-                master2.done += done[1]
+                # Cloud 的统计汇总到各 master（保持原逻辑简单化）
+                for idx in range(num_masters):
+                    masters[idx].undone += undone[idx] if idx < len(undone) else 0
+                    masters[idx].done += done[idx] if idx < len(done) else 0
 
                 # 计算即时奖励与指标
-                cur_done = [master1.done - pre_done[0], master2.done - pre_done[1]]
-                cur_undone = [master1.undone - pre_undone[0], master2.undone - pre_undone[1]]
-                pre_done = [master1.done, master2.done]
-                pre_undone = [master1.undone, master2.undone]
+                cur_done = [masters[i].done - pre_done[i] for i in range(num_masters)]
+                cur_undone = [masters[i].undone - pre_undone[i] for i in range(num_masters)]
+                pre_done = [masters[i].done for i in range(num_masters)]
+                pre_undone = [masters[i].undone for i in range(num_masters)]
 
-                immediate_reward = Simulator.calculate_reward(master1, master2, cur_done, cur_undone)
+                # reward：对每个 master 计算标准差与失败率
+                immediate_reward = []
+                weight = 1.0
+                for m_idx in range(num_masters):
+                    all_task = float(cur_done[m_idx] + cur_undone[m_idx])
+                    fail_task = float(cur_undone[m_idx])
+                    task_fail_rate = (fail_task / all_task) if all_task != 0 else 0.0
+                    use_rates = []
+                    for i in range(nodes_per_master):
+                        use_rates.append(masters[m_idx].node_list[i].cpu / masters[m_idx].node_list[i].cpu_max)
+                        use_rates.append(masters[m_idx].node_list[i].mem / masters[m_idx].node_list[i].mem_max)
+                    # ddof=1 需至少 2 个样本
+                    std_val = float(np.std(use_rates, ddof=1)) if len(use_rates) > 1 else float(np.std(use_rates))
+                    immediate_reward.append(np.exp(-task_fail_rate) + weight * np.exp(-std_val))
                 batch_reward.append(immediate_reward)
 
-                if (sum(cur_done) + sum(cur_undone)) != 0:
-                    order_response_rates.append(float(sum(cur_done) / (sum(cur_done) + sum(cur_undone))))
+                # 汇总响应率（总完成/总完成+总失败）
+                total_cur_done = float(sum(cur_done))
+                total_cur_undone = float(sum(cur_undone))
+                if (total_cur_done + total_cur_undone) != 0:
+                    order_response_rates.append(float(total_cur_done / (total_cur_done + total_cur_undone)))
                 else:
                     order_response_rates.append(0.0)
 
@@ -261,10 +267,12 @@ class Simulator:
             n_iter_order_response_rate = float(np.mean(order_response_rates[1:])) if len(order_response_rates) > 1 else float(np.mean(order_response_rates))
             order_response_rate_episode.append(n_iter_order_response_rate)
 
-            all_number = (master1.done + master2.done) + (master1.undone + master2.undone)
-            throughput = float((master1.done + master2.done) / all_number) if all_number > 0 else 0.0
+            all_done = sum([m.done for m in masters])
+            all_undone = sum([m.undone for m in masters])
+            all_number = all_done + all_undone
+            throughput = float(all_done / all_number) if all_number > 0 else 0.0
             throughput_list.append(throughput)
-            self.logger.info(f"Run {n_iter+1} throughput={throughput:.4f}, achieve={master1.done + master2.done}, fail={master1.undone + master2.undone}")
+            self.logger.info(f"Run {n_iter+1} throughput={throughput:.4f}, achieve={all_done}, fail={all_undone}")
 
         # 写入结果文件
         model_tag = self.model_name

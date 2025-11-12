@@ -98,7 +98,12 @@ env_run.py 实现了环境的运行逻辑，包括：
   - `logs/run.log`：运行日志。
 
 - 配置说明：
-  - 默认配置位于 `configs/default.yaml`，可覆盖：设备选择（cpu/cuda）、数据路径、是否启用 `informer`、`UCB_predict` 的预测类型等。
+  - 默认配置位于 `configs/default.yaml`，可覆盖：
+    - 设备选择（cpu/cuda）
+    - 数据路径（`data_task_1`、`data_task_2`）。当 `num_masters>2` 时，多余的 master 将在这两份数据之间轮换（偶数索引用 Task_1，奇数索引用 Task_2）。
+    - 可配置规模：`num_masters`（默认 2）、`nodes_per_master`（默认 3）。`action_dim` 将在代码中按 `num_masters*nodes_per_master + 1`（cloud）动态计算。
+    - 是否启用 `informer`、`UCB_predict` 的预测类型等。
+  - UCB_predict + Informer 使用说明：`informer.input_size` 为每步输入向量维度；每个时间步将所有 master 的所有节点 CPU 利用率（cpu/cpu_max，按全局节点顺序）拼接为向量，不足零填充、超出截断；推理采用 `torch.no_grad()` 包裹，预测到的下一步利用率会映射回各节点生成绝对 CPU 值 `[pred*cpu_max, cpu_max]` 并用于 UCB 决策。
 
 - 已修复的已知问题：
   - `s_grid` 第二组状态使用 `cpu_list2/mem_list2`（修复 notebook 复用错误）。

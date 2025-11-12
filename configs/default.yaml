@@ -1,4 +1,4 @@
-# 默认配置示例（可按需调整）
+# 默认配置示例（可按需调整)
 SLOT_TIME: 0.5
 MAX_TASK_TYPE: 12
 POD_CPU: 15.0
@@ -8,20 +8,24 @@ service_coefficient: [0.8, 0.8, 0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.3, 1.3
 # 设备选择：auto/cpu/cuda
 device: auto
 
-# 算法参数
-action_dim: 7
+# 可配置规模（新增）
+num_masters: 2           # 默认 2 个 master
+nodes_per_master: 3      # 默认每个 master 3 个 node，总节点 total_nodes=num_masters*nodes_per_master
+
+# 算法参数（action_dim 将在代码中按 total_nodes+1 动态计算；state_dim=88 固定）
+action_dim: 7            # 仅作占位，实际运行时由 init_algorithms 动态覆盖
 state_dim: 88
 epsilon: 0.1
 
 # 预测配置：UCB_predict 会用到
 predict:
   enable: true
-  type: mean        # 可选 mean/informer（informer 输入形状缺乏定义，建议使用 mean）
+  type: informer        # 可选 mean/informer
   lookback: 20
 
 # Informer 模型加载：默认保留加载逻辑，但不启用
 informer:
-  enable: false
+  enable: true
   model_path: best_informer_model.pth
   input_size: 199
   embed_size: 256
@@ -36,12 +40,12 @@ RESULTS_DIR: results
 OUTPUTS_DIR: outputs
 LOGS_DIR: logs
 
-# 数据路径
+# 数据路径（当 num_masters>2 时，任务数据在 Task_1 与 Task_2 间轮换分配）
 data_task_1: data/Task_1.csv
 data_task_2: data/Task_2.csv
 
-# 初始部署矩阵：默认全 1（6 节点 x 12 服务类型）
-# deploy_state:
+# 初始部署矩阵：默认全 1（大小为 total_nodes x MAX_TASK_TYPE）
+# deploy_state:  # 示例：当 num_masters=2 且 nodes_per_master=3 时为 6x12
 #   - [1,1,1,1,1,1,1,1,1,1,1,1]
 #   - [1,1,1,1,1,1,1,1,1,1,1,1]
 #   - [1,1,1,1,1,1,1,1,1,1,1,1]

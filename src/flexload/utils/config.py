@@ -17,6 +17,10 @@ DEFAULTS: Dict[str, Any] = {
         0.8, 0.8, 0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.3, 1.3, 1.4, 1.4
     ],
     "device": "auto",  # auto/cpu/cuda
+    # 可配置规模：master 数量与每个 master 的节点数
+    "num_masters": 2,
+    "nodes_per_master": 3,
+    # 维度参数（若未显式给出，将在 init_algorithms 中依据规模动态计算）
     "action_dim": 7,
     "state_dim": 88,
     "epsilon": 0.1,

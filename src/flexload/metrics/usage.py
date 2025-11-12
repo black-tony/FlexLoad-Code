@@ -8,24 +8,27 @@ class ResourceUsageTracker:
         self.history: List[Dict[str, Any]] = []
 
     def append_slot(self, master1, master2, cur_time: float):
+        """兼容旧接口：记录两个 master 的资源使用。"""
+        self.append_slot_multi([master1, master2], cur_time)
+
+    def append_slot_multi(self, masters: List[Any], cur_time: float):
+        """记录任意数量 master 的节点资源使用。
+        结构：{"time": t, "masters": [[node_dict...], [node_dict...], ...]}
+        """
         slot_usage = {
             "time": cur_time,
-            "master1": [],
-            "master2": [],
+            "masters": [],
         }
-        for i in range(3):
-            slot_usage["master1"].append({
-                "cpu": master1.node_list[i].cpu,
-                "cpu_max": master1.node_list[i].cpu_max,
-                "mem": master1.node_list[i].mem,
-                "mem_max": master1.node_list[i].mem_max,
-            })
-            slot_usage["master2"].append({
-                "cpu": master2.node_list[i].cpu,
-                "cpu_max": master2.node_list[i].cpu_max,
-                "mem": master2.node_list[i].mem,
-                "mem_max": master2.node_list[i].mem_max,
-            })
+        for m in masters:
+            group = []
+            for i in range(len(m.node_list)):
+                group.append({
+                    "cpu": m.node_list[i].cpu,
+                    "cpu_max": m.node_list[i].cpu_max,
+                    "mem": m.node_list[i].mem,
+                    "mem_max": m.node_list[i].mem_max,
+                })
+            slot_usage["masters"].append(group)
         self.history.append(slot_usage)
 
     def save_json(self, path: str):

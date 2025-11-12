@@ -10,3 +10,32 @@
 2025-11-12 00:03:09,817 [INFO] flexload - Run 1/1 starting...
 2025-11-12 00:03:10,013 [INFO] flexload - Run 1 throughput=1.0000, achieve=9, fail=0
 2025-11-12 00:03:10,105 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 50, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.14285714285714285], 'episode_rewards': [183.0132967410633]}
+2025-11-12 10:40:38,159 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:40:38,699 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:40:39,009 [INFO] flexload - Run 1 throughput=1.0000, achieve=6, fail=0
+2025-11-12 10:40:39,013 [INFO] flexload - Simulation finished. summary={'model': 'KaiS', 'run_times': 1, 'break_point': 60, 'cho_cycle': 20, 'throughput_list': [1.0], 'order_response_rate_episode': [0.1016949152542373], 'episode_rewards': [214.93058648333542]}
+2025-11-12 10:41:13,743 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:41:14,267 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:41:14,363 [INFO] flexload - Run 1 throughput=0.0000, achieve=0, fail=0
+2025-11-12 10:41:14,366 [INFO] flexload - Simulation finished. summary={'model': 'UCB', 'run_times': 1, 'break_point': 30, 'cho_cycle': 10, 'throughput_list': [0.0], 'order_response_rate_episode': [0.0], 'episode_rewards': [116.0]}
+2025-11-12 10:41:20,941 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:41:21,475 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:41:21,538 [INFO] flexload - Run 1 throughput=1.0000, achieve=3, fail=0
+2025-11-12 10:41:21,541 [INFO] flexload - Simulation finished. summary={'model': 'DQN', 'run_times': 1, 'break_point': 30, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.10344827586206896], 'episode_rewards': [107.82808007580483]}
+2025-11-12 10:41:27,145 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:41:27,689 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:41:29,299 [INFO] flexload - Run 1 throughput=1.0000, achieve=8, fail=0
+2025-11-12 10:41:29,302 [INFO] flexload - Simulation finished. summary={'model': 'generic', 'run_times': 1, 'break_point': 30, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.20689655172413793], 'episode_rewards': [107.8093029232555]}
+2025-11-12 10:41:36,050 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:41:36,583 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:41:36,642 [INFO] flexload - Run 1 throughput=1.0000, achieve=4, fail=0
+2025-11-12 10:41:36,645 [INFO] flexload - Simulation finished. summary={'model': 'Random', 'run_times': 1, 'break_point': 30, 'cho_cycle': 10, 'throughput_list': [1.0], 'order_response_rate_episode': [0.10344827586206896], 'episode_rewards': [108.03201875178816]}
+2025-11-12 10:41:41,946 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:41:42,489 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:41:42,587 [INFO] flexload - Run 1 throughput=0.0000, achieve=0, fail=0
+2025-11-12 10:41:42,590 [INFO] flexload - Simulation finished. summary={'model': 'UCB_predict', 'run_times': 1, 'break_point': 30, 'cho_cycle': 10, 'throughput_list': [0.0], 'order_response_rate_episode': [0.0], 'episode_rewards': [116.0]}
+2025-11-12 10:48:46,751 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-12 10:48:47,335 [INFO] flexload - Informer loaded from best_informer_model.pth
+2025-11-12 10:48:47,335 [INFO] flexload - Run 1/1 starting...
+2025-11-12 10:48:49,706 [INFO] flexload - Run 1 throughput=0.8000, achieve=4, fail=1
+2025-11-12 10:48:49,710 [INFO] flexload - Simulation finished. summary={'model': 'UCB_predict', 'run_times': 1, 'break_point': 60, 'cho_cycle': 20, 'throughput_list': [0.8], 'order_response_rate_episode': [0.06779661016949153], 'episode_rewards': [214.57987804571448]}
