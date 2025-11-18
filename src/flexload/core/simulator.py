@@ -159,6 +159,11 @@ class Simulator:
                 docker = Docker(self.POD_MEM * self.service_coeff[ii], self.POD_CPU * self.service_coeff[ii], current_time, ii, [-1])
                 masters[master_id].node_list[local_node].service_list.append(docker)
 
+        # 为 Cloud 初始化每种服务类型的 Docker，作为后备保障
+        for ii in range(self.MAX_TASK_TYPE):
+            docker = Docker(self.POD_MEM * self.service_coeff[ii], self.POD_CPU * self.service_coeff[ii], current_time, ii, [-1])
+            cloud.service_list.append(docker)
+
         return masters, cloud
 
     def run(self,
@@ -239,6 +244,21 @@ class Simulator:
                 s_grid = build_s_grid_multi(masters, deploy_state)
 
                 # 选择动作（记录决策时延）
+                # 构造上下文：UCB/UCB_predict 使用 dict，其它算法沿用原 list
+                if str(self.model_name) in ("UCB", "UCB_predict"):
+                    context = {
+                        "curr_tasks": curr_tasks,
+                        "cur_time": cur_time,
+                        "service_coefficient": self.service_coeff,
+                        "POD_CPU": self.POD_CPU,
+                        "POD_MEM": self.POD_MEM,
+                        "nodes_per_master": nodes_per_master,
+                        # 可选覆盖权重
+                        "ucb_weights": self.cfg.get("ucb_weights", None),
+                    }
+                else:
+                    context = [1] * num_masters
+
                 _t0 = time.perf_counter()
                 act, valid_action_prob_mat, policy_state, action_choosen_mat, curr_state_value, curr_neighbor_mask, next_state_ids = \
                     select_action(self.model_name, s_grid, ava_node, context=context, epsilon=epsilon, cfg=self.cfg,

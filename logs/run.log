@@ -97,3 +97,13 @@
 2025-11-18 12:13:20,595 [INFO] flexload - QVR_time_rate=0.000000, QVR_task_rate=0.000000
 2025-11-18 12:13:20,595 [INFO] flexload - QVR_network_only_rate=0.000000
 2025-11-18 12:13:20,596 [INFO] flexload - Simulation finished. summary={'model': 'UCB', 'run_times': 1, 'break_point': 60, 'cho_cycle': 20, 'throughput_list': [0.0], 'order_response_rate_episode': [0.0], 'episode_rewards': [236.0], 'qvr_time_rate': 0.0, 'qvr_task_rate': 0.0, 'qvr_network_only_rate': 0.0, 'decision_latency_avg_ms': 0.003964011557400227, 'decision_latency_p95_ms': 0.018662121146917343, 'decision_latency_count': 60}
+2025-11-18 15:06:59,651 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-18 15:07:00,246 [INFO] flexload - Informer loaded from best_informer_model.pth
+2025-11-18 15:07:00,248 [INFO] flexload - Network trace loaded: trace.csv, steps=60
+2025-11-18 15:07:00,248 [INFO] flexload - Run 1/1 starting...
+2025-11-18 15:07:00,311 [INFO] flexload - Run 1 throughput=1.0000, achieve=13, fail=0
+2025-11-18 15:07:00,311 [INFO] flexload - Run 1 QVR_time_rate=0.000000
+2025-11-18 15:07:00,317 [INFO] flexload - Decision latency avg=0.006ms, p95=0.035ms, samples=60
+2025-11-18 15:07:00,317 [INFO] flexload - QVR_time_rate=0.000000, QVR_task_rate=0.000000
+2025-11-18 15:07:00,317 [INFO] flexload - QVR_network_only_rate=0.000000
+2025-11-18 15:07:00,318 [INFO] flexload - Simulation finished. summary={'model': 'UCB', 'run_times': 1, 'break_point': 60, 'cho_cycle': 20, 'throughput_list': [1.0], 'order_response_rate_episode': [0.22033898305084745], 'episode_rewards': [236.0], 'qvr_time_rate': 0.0, 'qvr_task_rate': 0.0, 'qvr_network_only_rate': 0.0, 'decision_latency_avg_ms': 0.0061896319190661115, 'decision_latency_p95_ms': 0.03483316395431756, 'decision_latency_count': 60}
