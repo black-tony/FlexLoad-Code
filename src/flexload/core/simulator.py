@@ -21,6 +21,8 @@ from flexload.metrics.usage import ResourceUsageTracker
 from flexload.metrics.qos import compute_qvr_slot, finalize_qvr
 from flexload.metrics.cost import DecisionCostTracker
 from flexload.utils.logging import ensure_dir
+import os
+from flexload.net.trace import read_trace_csv, get_step, apply_to_nodes
 
 
 class Simulator:
@@ -67,6 +69,33 @@ class Simulator:
         self.usage_tracker = ResourceUsageTracker()
         # 调度决策时延记录器
         self.decision_tracker = DecisionCostTracker()
+        # 网络配置与 trace 加载
+        net_cfg = dict(config.get("network", {}))
+        self.network_enabled = bool(net_cfg.get("enabled", True))
+        self.network_trace_path = str(net_cfg.get("trace_path", "trace.csv"))
+        bw_demand = list(net_cfg.get("bw_demand_per_kind", [1.0] * self.MAX_TASK_TYPE))
+        plr_thr = list(net_cfg.get("plr_threshold_per_kind", [0.05] * self.MAX_TASK_TYPE))
+        # 对齐到 MAX_TASK_TYPE
+        if len(bw_demand) < self.MAX_TASK_TYPE:
+            bw_demand += [1.0] * (self.MAX_TASK_TYPE - len(bw_demand))
+        if len(plr_thr) < self.MAX_TASK_TYPE:
+            plr_thr += [0.05] * (self.MAX_TASK_TYPE - len(plr_thr))
+        self.bw_demand_per_kind = bw_demand[:self.MAX_TASK_TYPE]
+        self.plr_threshold_per_kind = plr_thr[:self.MAX_TASK_TYPE]
+        # 读取 trace
+        self.net_trace_data = []
+        if self.network_enabled:
+            try:
+                if os.path.exists(self.network_trace_path):
+                    self.net_trace_data = read_trace_csv(self.network_trace_path)
+                    self.logger.info(f"Network trace loaded: {self.network_trace_path}, steps={len(self.net_trace_data)}")
+                else:
+                    self.network_enabled = False
+                    self.logger.info(f"Network trace file not found: {self.network_trace_path}, disable network dimension.")
+            except Exception as e:
+                self.network_enabled = False
+                self.logger.warning(f"Failed to load network trace: {e}. Disable network dimension.")
+
 
     @staticmethod
     def calculate_reward(master1: Master, master2: Master, cur_done: List[float], cur_undone: List[float]) -> List[float]:
@@ -157,6 +186,7 @@ class Simulator:
             # QoS 违约累计（按节点/slot）与任务视角计数（跨 run 汇总）
             qvr_violation_nodes_accum = 0
             total_slots_accum = 0
+            qvr_network_only_accum = 0
             all_done_total = 0
             all_undone_total = 0
 
@@ -174,6 +204,11 @@ class Simulator:
                 cur_time += self.SLOT_TIME
                 total_slots_accum += 1
 
+                # 记录当前资源使用（多 master）
+                # 应用网络维度（若启用）
+                if self.network_enabled and isinstance(self.net_trace_data, list):
+                    step_map = get_step(self.net_trace_data, slot, total_nodes)
+                    apply_to_nodes(masters, step_map, nodes_per_master)
                 # 记录当前资源使用（多 master）
                 self.usage_tracker.append_slot_multi(masters, cur_time)
 
@@ -226,8 +261,26 @@ class Simulator:
                     else:
                         self.logger.debug(f"Ignore invalid action: {a}")
                 # 计算 QoS 违约节点数（slot 级）
-                _viol_nodes = compute_qvr_slot(masters, self.service_coeff, self.POD_CPU, self.POD_MEM, cur_time)
+                _viol_nodes = compute_qvr_slot(
+                    masters,
+                    self.service_coeff,
+                    self.POD_CPU,
+                    self.POD_MEM,
+                    cur_time,
+                    self.bw_demand_per_kind,
+                    self.plr_threshold_per_kind,
+                )
                 qvr_violation_nodes_accum += _viol_nodes
+                # 仅网络维度的违约
+                if self.network_enabled:
+                    try:
+                        from flexload.metrics.qos import compute_qvr_network_only_slot
+                        _viol_net = compute_qvr_network_only_slot(masters, self.bw_demand_per_kind, self.plr_threshold_per_kind)
+                    except Exception:
+                        _viol_net = 0
+                else:
+                    _viol_net = 0
+                qvr_network_only_accum += _viol_net
 
                 # 更新各 master 的 docker 执行状态
                 for m_idx in range(num_masters):
@@ -305,6 +358,7 @@ class Simulator:
         # 决策时延与 QoS 汇总（跨所有 run）
         decision_summary = self.decision_tracker.to_summary()
         qvr_time_rate = finalize_qvr(total_slots_accum, self.total_nodes, qvr_violation_nodes_accum) if RUN_TIMES >= 1 else 0.0
+        qvr_network_only_rate = finalize_qvr(total_slots_accum, self.total_nodes, qvr_network_only_accum) if RUN_TIMES >= 1 else 0.0
         qvr_task_rate = float(all_undone_total / (all_done_total + all_undone_total)) if (all_done_total + all_undone_total) > 0 else 0.0
 
         # 输出 summary（新增指标）
@@ -318,6 +372,7 @@ class Simulator:
             "episode_rewards": episode_rewards,
             "qvr_time_rate": qvr_time_rate,
             "qvr_task_rate": qvr_task_rate,
+            "qvr_network_only_rate": qvr_network_only_rate,
             "decision_latency_avg_ms": decision_summary.get("avg_ms", 0.0),
             "decision_latency_p95_ms": decision_summary.get("p95_ms", 0.0),
             "decision_latency_count": decision_summary.get("count", 0),
@@ -329,6 +384,7 @@ class Simulator:
         metrics = {
             "qvr_time_rate": qvr_time_rate,
             "qvr_task_rate": qvr_task_rate,
+            "qvr_network_only_rate": qvr_network_only_rate,
             "decision_latency": decision_summary,
         }
         with open(f"{self.outputs_dir}/metrics.json", "w", encoding="utf-8") as f:
@@ -337,5 +393,6 @@ class Simulator:
         # 日志提示
         self.logger.info(f"Decision latency avg={decision_summary.get('avg_ms', 0.0):.3f}ms, p95={decision_summary.get('p95_ms', 0.0):.3f}ms, samples={decision_summary.get('count', 0)}")
         self.logger.info(f"QVR_time_rate={qvr_time_rate:.6f}, QVR_task_rate={qvr_task_rate:.6f}")
+        self.logger.info(f"QVR_network_only_rate={qvr_network_only_rate:.6f}")
 
         return summary

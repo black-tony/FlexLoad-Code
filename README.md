@@ -126,17 +126,40 @@ env_run.py 实现了环境的运行逻辑，包括：
   - 在每个 slot 的动作选择阶段，记录 `select_action` 的壁钟时间（毫秒），并汇总平均值（`avg_ms`）与 P95（`p95_ms`）。
   - 额外记录候选集大小 `|A|`（每个任务的 `ava_node` 长度之和）的平均值（`candidate_avg_size`），便于分析规模对延迟的影响。
 
+### 网络维度与输入（新增）
+
+为支持网络带宽与丢包率（PLR）维度，项目新增了网络 trace 的接入与 QoS 扩展：
+
+- Trace 文件格式（CSV）支持两种形式：
+  1) 窄表：每行 `time_slot,node_id,bw_mbps,plr`。
+  2) 宽表：第一列为 `time_slot`，后续列按 `node_0_bw,node_0_plr,node_1_bw,node_1_plr,...` 组织（节点按全局索引 0..N-1）。
+- 字段含义：
+  - `bw_mbps`：节点该时间步的有效网络带宽（Mbps）。
+  - `plr`：节点该时间步的丢包率（0~1）。
+- 配置项（`utils/config.py` 中 DEFAULTS，或通过 YAML/JSON 覆盖）：
+  - `network.enabled`：是否启用网络维度，默认 `True`。
+  - `network.trace_path`：trace 文件路径，默认 `trace.csv`（可通过 CLI `--network_trace` 覆盖）。
+  - `network.bw_demand_per_kind`：每种任务类型的带宽需求（Mbps），默认按 `MAX_TASK_TYPE` 填充为 `1.0`。
+  - `network.plr_threshold_per_kind`：每种任务类型的最大可接受丢包率，默认按 `MAX_TASK_TYPE` 填充为 `0.05`。
+- QoS 扩展逻辑：
+  - 若 `node.net_bw_mbps < bw_need[kind]` 或 `node.plr > plr_threshold[kind]`，则该节点在当前 slot 视为违约；与原有资源/超时条件取“或”。
+  - 额外提供 `qvr_network_only_rate`（仅网络维度违约率），便于隔离分析网络影响。
+
 ### 输出说明
 
 - `outputs/summary.json` 增加字段：
-  - `qvr_time_rate`, `qvr_task_rate`,
+  - `qvr_time_rate`, `qvr_task_rate`, `qvr_network_only_rate`,
   - `decision_latency_avg_ms`, `decision_latency_p95_ms`, `decision_latency_count`。
-- `outputs/metrics.json`（新增）：集中存放上述两类指标的详细汇总结构，便于脚本或可视化工具直接消费。
+- `outputs/metrics.json`（新增）：集中存放上述指标的详细汇总结构，便于脚本或可视化工具直接消费。
 
 ### 示例使用（冒烟）
 
 ```bash
-python scripts/run.py --config configs/default.yaml --model UCB_predict --run_times 1 --break_point 80 --cho_cycle 20
+# 若工作区存在 trace.csv
+python scripts/run.py --config configs/default.yaml --model UCB_predict --network_trace trace.csv --run_times 1 --break_point 60 --cho_cycle 20
+
+# 若无 trace.csv（将自动禁用网络维度）
+python scripts/run.py --config configs/default.yaml --model UCB_predict --run_times 1 --break_point 60 --cho_cycle 20
 ```
 
-运行后，你可以在 `logs/run.log` 中看到吞吐、完成/失败、QVR 与决策开销的汇总日志；在 `outputs` 目录下看到 `summary.json` 与 `metrics.json`。
+运行后，你可以在 `logs/run.log` 中看到吞吐、完成/失败、QVR（含网络维度）与决策开销的汇总日志；在 `outputs` 目录下看到 `summary.json` 与 `metrics.json`（包含 `qvr_network_only_rate`）。

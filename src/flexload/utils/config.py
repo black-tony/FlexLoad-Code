@@ -16,6 +16,18 @@ DEFAULTS: Dict[str, Any] = {
     "service_coefficient": [
         0.8, 0.8, 0.9, 0.9, 1.0, 1.0, 1.1, 1.1, 1.2, 1.2, 1.3, 1.3, 1.4, 1.4
     ],
+    # 网络维度配置（默认启用），trace 默认路径为 trace.csv
+    "network": {
+        "enabled": True,
+        "trace_path": "trace.csv",
+        # 默认按照 MAX_TASK_TYPE=12 填充，仿真器中会根据实际 MAX_TASK_TYPE 截断或补齐
+        "bw_demand_per_kind": [
+            1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+        ],
+        "plr_threshold_per_kind": [
+            0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05
+        ],
+    },
     "device": "auto",  # auto/cpu/cuda
     # 可配置规模：master 数量与每个 master 的节点数
     "num_masters": 2,

@@ -27,6 +27,7 @@ def parse_args():
     parser.add_argument("--train_times", type=int, default=50, help="训练步数（保留占位）")
     parser.add_argument("--cho_cycle", type=int, default=100, help="决策周期（每多少个 slot 做一次策略学习占位）")
     parser.add_argument("--seed", type=int, default=2025, help="随机种子")
+    parser.add_argument("--network_trace", type=str, default=None, help="网络 trace CSV 路径（可选），提供则覆盖 cfg.network.trace_path")
     return parser.parse_args()
 
 
@@ -35,6 +36,10 @@ def main():
     cfg = load_config(args.config)
     if args.model:
         cfg["model"] = args.model
+    # 网络 trace 覆盖（可选）
+    if args.network_trace:
+        cfg.setdefault("network", {})
+        cfg["network"]["trace_path"] = args.network_trace
     # 固定随机种子
     seed_all(args.seed, deterministic=True)
     # 切换到仓库根目录，确保相对路径（data/、results/ 等）可用

@@ -22,11 +22,15 @@ class ResourceUsageTracker:
         for m in masters:
             group = []
             for i in range(len(m.node_list)):
+                node = m.node_list[i]
                 group.append({
-                    "cpu": m.node_list[i].cpu,
-                    "cpu_max": m.node_list[i].cpu_max,
-                    "mem": m.node_list[i].mem,
-                    "mem_max": m.node_list[i].mem_max,
+                    "cpu": node.cpu,
+                    "cpu_max": node.cpu_max,
+                    "mem": node.mem,
+                    "mem_max": node.mem_max,
+                    # 网络维度（兼容旧结构，新增可选字段）
+                    "net_bw_mbps": getattr(node, "net_bw_mbps", 0.0),
+                    "plr": getattr(node, "plr", 0.0),
                 })
             slot_usage["masters"].append(group)
         self.history.append(slot_usage)

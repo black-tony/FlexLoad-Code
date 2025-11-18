@@ -14,6 +14,9 @@ class Node:
         self.mem_max = mem
         self.service_list = service_list
         self.task_queue = task_queue
+        # 网络维度（从 trace 注入）
+        self.net_bw_mbps = 0.0
+        self.plr = 0.0
 
 
 class Master:
