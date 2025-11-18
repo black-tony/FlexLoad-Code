@@ -1,1 +1,1 @@
-{"qvr_time_rate":0.37783333333333335,"qvr_task_rate":0.5128205128205128,"qvr_network_only_rate":0.37783333333333335,"decision_latency":{"avg_ms":0.026067892089486122,"p95_ms":0.026803836226463318,"count":2000,"candidate_avg_size":2.348}}
+{"qvr_time_rate":0.37783333333333335,"qvr_task_rate":0.5128205128205128,"qvr_network_only_rate":0.37783333333333335,"decision_latency":{"avg_ms":0.02388695627450943,"p95_ms":0.025243498384952545,"count":2000,"candidate_avg_size":2.348}}

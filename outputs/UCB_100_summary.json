@@ -1,0 +1,1 @@
+{"model":"UCB","run_times":1,"break_point":2000,"cho_cycle":50,"throughput_list":[0.875],"order_response_rate_episode":[0.054919126229781554],"episode_rewards":[7990.642389282919],"qvr_time_rate":0.0,"qvr_task_rate":0.125,"qvr_network_only_rate":0.0,"decision_latency_avg_ms":0.029860567301511765,"decision_latency_p95_ms":0.44819600880146027,"decision_latency_count":2000}
