@@ -18,6 +18,8 @@ from flexload.env.env_run import (
 from flexload.core.state import build_ava_nodes
 from flexload.scheduler.selector import select_action, init_algorithms
 from flexload.metrics.usage import ResourceUsageTracker
+from flexload.metrics.qos import compute_qvr_slot, finalize_qvr
+from flexload.metrics.cost import DecisionCostTracker
 from flexload.utils.logging import ensure_dir
 
 
@@ -63,6 +65,8 @@ class Simulator:
 
         # 资源使用记录器（替代 globals/node_resource_usage）
         self.usage_tracker = ResourceUsageTracker()
+        # 调度决策时延记录器
+        self.decision_tracker = DecisionCostTracker()
 
     @staticmethod
     def calculate_reward(master1: Master, master2: Master, cur_done: List[float], cur_undone: List[float]) -> List[float]:
@@ -150,6 +154,11 @@ class Simulator:
             pre_done = [0] * int(self.cfg.get("num_masters", 2))
             pre_undone = [0] * int(self.cfg.get("num_masters", 2))
             context = [1] * int(self.cfg.get("num_masters", 2))
+            # QoS 违约累计（按节点/slot）与任务视角计数（跨 run 汇总）
+            qvr_violation_nodes_accum = 0
+            total_slots_accum = 0
+            all_done_total = 0
+            all_undone_total = 0
 
             # 初始化集群
             masters, cloud = self._init_cluster(current_time=cur_time)
@@ -163,6 +172,7 @@ class Simulator:
             # 主循环
             for slot in range(int(BREAK_POINT)):
                 cur_time += self.SLOT_TIME
+                total_slots_accum += 1
 
                 # 记录当前资源使用（多 master）
                 self.usage_tracker.append_slot_multi(masters, cur_time)
@@ -193,10 +203,14 @@ class Simulator:
                 from flexload.core.state import build_s_grid_multi
                 s_grid = build_s_grid_multi(masters, deploy_state)
 
-                # 选择动作
+                # 选择动作（记录决策时延）
+                _t0 = time.perf_counter()
                 act, valid_action_prob_mat, policy_state, action_choosen_mat, curr_state_value, curr_neighbor_mask, next_state_ids = \
                     select_action(self.model_name, s_grid, ava_node, context=context, epsilon=epsilon, cfg=self.cfg,
                                   algos=self.algos, usage=self.usage_tracker, logger=self.logger)
+                _t1 = time.perf_counter()
+                _cand_size = sum([len(x) for x in ava_node]) if isinstance(ava_node, list) else 0
+                self.decision_tracker.add((_t1 - _t0) * 1000.0, candidate_size=_cand_size)
 
                 # 将当前任务按动作入队
                 for i in range(len(act)):
@@ -211,6 +225,9 @@ class Simulator:
                         masters[master_id].node_list[local_node].task_queue.append(curr_tasks[i])
                     else:
                         self.logger.debug(f"Ignore invalid action: {a}")
+                # 计算 QoS 违约节点数（slot 级）
+                _viol_nodes = compute_qvr_slot(masters, self.service_coeff, self.POD_CPU, self.POD_MEM, cur_time)
+                qvr_violation_nodes_accum += _viol_nodes
 
                 # 更新各 master 的 docker 执行状态
                 for m_idx in range(num_masters):
@@ -269,17 +286,28 @@ class Simulator:
 
             all_done = sum([m.done for m in masters])
             all_undone = sum([m.undone for m in masters])
+            # 累计任务视角统计（跨 run）
+            all_done_total += all_done
+            all_undone_total += all_undone
             all_number = all_done + all_undone
             throughput = float(all_done / all_number) if all_number > 0 else 0.0
             throughput_list.append(throughput)
             self.logger.info(f"Run {n_iter+1} throughput={throughput:.4f}, achieve={all_done}, fail={all_undone}")
+            # 当前 run 的 QoS 时间视角指标（按迭代累计）
+            qvr_time_rate_run = finalize_qvr(total_slots_accum, self.total_nodes, qvr_violation_nodes_accum)
+            self.logger.info(f"Run {n_iter+1} QVR_time_rate={qvr_time_rate_run:.6f}")
 
         # 写入结果文件
         model_tag = self.model_name
         usage_path = f"{self.results_dir}/node_resource_usage_{model_tag}.json"
         self.usage_tracker.save_json(usage_path)
 
-        # 输出 summary
+        # 决策时延与 QoS 汇总（跨所有 run）
+        decision_summary = self.decision_tracker.to_summary()
+        qvr_time_rate = finalize_qvr(total_slots_accum, self.total_nodes, qvr_violation_nodes_accum) if RUN_TIMES >= 1 else 0.0
+        qvr_task_rate = float(all_undone_total / (all_done_total + all_undone_total)) if (all_done_total + all_undone_total) > 0 else 0.0
+
+        # 输出 summary（新增指标）
         summary = {
             "model": self.model_name,
             "run_times": int(RUN_TIMES),
@@ -288,8 +316,26 @@ class Simulator:
             "throughput_list": throughput_list,
             "order_response_rate_episode": order_response_rate_episode,
             "episode_rewards": episode_rewards,
+            "qvr_time_rate": qvr_time_rate,
+            "qvr_task_rate": qvr_task_rate,
+            "decision_latency_avg_ms": decision_summary.get("avg_ms", 0.0),
+            "decision_latency_p95_ms": decision_summary.get("p95_ms", 0.0),
+            "decision_latency_count": decision_summary.get("count", 0),
         }
         with open(f"{self.outputs_dir}/summary.json", "w", encoding="utf-8") as f:
             json.dump(summary, f, ensure_ascii=False, separators=(",", ":"))
+
+        # 额外写出 metrics.json
+        metrics = {
+            "qvr_time_rate": qvr_time_rate,
+            "qvr_task_rate": qvr_task_rate,
+            "decision_latency": decision_summary,
+        }
+        with open(f"{self.outputs_dir}/metrics.json", "w", encoding="utf-8") as f:
+            json.dump(metrics, f, ensure_ascii=False, separators=(",", ":"))
+
+        # 日志提示
+        self.logger.info(f"Decision latency avg={decision_summary.get('avg_ms', 0.0):.3f}ms, p95={decision_summary.get('p95_ms', 0.0):.3f}ms, samples={decision_summary.get('count', 0)}")
+        self.logger.info(f"QVR_time_rate={qvr_time_rate:.6f}, QVR_task_rate={qvr_task_rate:.6f}")
 
         return summary

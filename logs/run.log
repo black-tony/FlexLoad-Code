@@ -39,3 +39,11 @@
 2025-11-12 10:48:47,335 [INFO] flexload - Run 1/1 starting...
 2025-11-12 10:48:49,706 [INFO] flexload - Run 1 throughput=0.8000, achieve=4, fail=1
 2025-11-12 10:48:49,710 [INFO] flexload - Simulation finished. summary={'model': 'UCB_predict', 'run_times': 1, 'break_point': 60, 'cho_cycle': 20, 'throughput_list': [0.8], 'order_response_rate_episode': [0.06779661016949153], 'episode_rewards': [214.57987804571448]}
+2025-11-18 11:42:17,211 [INFO] flexload - Config loaded from FlexLoad-Code/configs/default.yaml
+2025-11-18 11:42:27,707 [INFO] flexload - Informer loaded from best_informer_model.pth
+2025-11-18 11:42:27,707 [INFO] flexload - Run 1/1 starting...
+2025-11-18 11:42:31,188 [INFO] flexload - Run 1 throughput=0.8000, achieve=4, fail=1
+2025-11-18 11:42:31,188 [INFO] flexload - Run 1 QVR_time_rate=0.150000
+2025-11-18 11:42:31,284 [INFO] flexload - Decision latency avg=42.043ms, p95=94.823ms, samples=80
+2025-11-18 11:42:31,284 [INFO] flexload - QVR_time_rate=0.150000, QVR_task_rate=0.200000
+2025-11-18 11:42:31,285 [INFO] flexload - Simulation finished. summary={'model': 'UCB_predict', 'run_times': 1, 'break_point': 80, 'cho_cycle': 20, 'throughput_list': [0.8], 'order_response_rate_episode': [0.05063291139240506], 'episode_rewards': [287.24047018698536], 'qvr_time_rate': 0.15, 'qvr_task_rate': 0.2, 'decision_latency_avg_ms': 42.04261144041084, 'decision_latency_p95_ms': 94.82268665451556, 'decision_latency_count': 80}

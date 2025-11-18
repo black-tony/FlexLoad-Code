@@ -110,3 +110,33 @@ env_run.py 实现了环境的运行逻辑，包括：
   - `KaiS` 的状态维度统一转换为 88 维向量，避免维度错误。
   - 写文件前确保目录存在（`results/`、`outputs/`、`logs/`）。
   - 移除 `globals()` 的状态共享，改用对象记录与传参。
+
+## 指标与输出（新增）
+
+本工程在仿真管线中集成了两项关键指标，用于完整评估调度策略：
+
+- **QoS 违约率（QVR）**
+  - **时间视角 QVR_time_rate**：在每个仿真 slot 上，逐节点检测是否存在队列中的任务发生违约；违约条件参考 `env.update_docker` 的语义：
+    1) 若现在开始执行会超时：`cur_time + (task_cpu / docker_cpu) > end_time`；
+    2) 资源不足：`node.cpu < POD_CPU×service_coefficient[kind]` 或 `node.mem < POD_MEM×service_coefficient[kind]`。
+    每个 slot 的违约时间占比 = 发生违约的节点数 / 总节点数；总体为所有 slot 的平均占比（等价于累计违约节点数 / (总节点数 × 总 slot 数)）。
+  - **任务视角 QVR_task_rate**：在所有 run 结束后，以总未完成任务数 `undone` 除以（完成+未完成）任务数，作为粗粒度违约率。
+
+- **调度决策开销（Scheduling Cost/Latency）**
+  - 在每个 slot 的动作选择阶段，记录 `select_action` 的壁钟时间（毫秒），并汇总平均值（`avg_ms`）与 P95（`p95_ms`）。
+  - 额外记录候选集大小 `|A|`（每个任务的 `ava_node` 长度之和）的平均值（`candidate_avg_size`），便于分析规模对延迟的影响。
+
+### 输出说明
+
+- `outputs/summary.json` 增加字段：
+  - `qvr_time_rate`, `qvr_task_rate`,
+  - `decision_latency_avg_ms`, `decision_latency_p95_ms`, `decision_latency_count`。
+- `outputs/metrics.json`（新增）：集中存放上述两类指标的详细汇总结构，便于脚本或可视化工具直接消费。
+
+### 示例使用（冒烟）
+
+```bash
+python scripts/run.py --config configs/default.yaml --model UCB_predict --run_times 1 --break_point 80 --cho_cycle 20
+```
+
+运行后，你可以在 `logs/run.log` 中看到吞吐、完成/失败、QVR 与决策开销的汇总日志；在 `outputs` 目录下看到 `summary.json` 与 `metrics.json`。

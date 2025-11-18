@@ -1,1 +1,1 @@
-{"model":"UCB_predict","run_times":1,"break_point":60,"cho_cycle":20,"throughput_list":[0.8],"order_response_rate_episode":[0.06779661016949153],"episode_rewards":[214.57987804571448]}
+{"model":"UCB_predict","run_times":1,"break_point":80,"cho_cycle":20,"throughput_list":[0.8],"order_response_rate_episode":[0.05063291139240506],"episode_rewards":[287.24047018698536],"qvr_time_rate":0.15,"qvr_task_rate":0.2,"decision_latency_avg_ms":42.04261144041084,"decision_latency_p95_ms":94.82268665451556,"decision_latency_count":80}
